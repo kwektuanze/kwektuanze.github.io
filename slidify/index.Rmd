@@ -135,7 +135,7 @@ sentimentScores
 ```
 
 ---
-### Box plot of the distribution and mean of scores
+### 2. Box plot of the distribution and mean of scores
 ---
 ```{r}
 ggplot(sentimentScores, aes(x=word,y=score,fill=word))+geom_boxplot()+geom_jitter(alpha=.3)+

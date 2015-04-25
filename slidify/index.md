@@ -155,7 +155,7 @@ sentimentScores<-sentimentAnalysis(searchResult1$text, searchResult2$text, "#iph
 ```
 
 ---
-### Box plot of the distribution and mean of scores
+### 2. Box plot of the distribution and mean of scores
 ---
 
 ```r

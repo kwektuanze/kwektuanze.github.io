@@ -172,7 +172,7 @@ sentimentScores&lt;-sentimentAnalysis(searchResult1$text, searchResult2$text, &q
 </div>
 </section>
 <section class='' data-state='' id='slide-4'>
-  <h3>Box plot of the distribution and mean of scores</h3>
+  <h3>2. Box plot of the distribution and mean of scores</h3>
   <hr>
 
 <pre><code class="r">ggplot(sentimentScores, aes(x=word,y=score,fill=word))+geom_boxplot()+geom_jitter(alpha=.3)+
