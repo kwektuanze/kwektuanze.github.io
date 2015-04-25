@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Developing Data Products Course Project</title>
+  <meta name="description" content="">
+  <meta name="author" content="kwektuanze">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="stylesheet" href="libraries/frameworks/revealjs/css/reveal.min.css">
+  <link rel="stylesheet" href="libraries/frameworks/revealjs/css/theme/default.css" id="theme">
+  <link rel="stylesheet" href="libraries/highlighters/highlight.js/css/tomorrow.css" id="theme">
+  <!--[if lt IE 9]>
+  <script src="lib/js/html5shiv.js"></script>
+  <![endif]-->  <link rel="stylesheet" href = "assets/css/ribbons.css">
+
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section class='' data-state='' id='slide-1'>
+  <h3>Presentation on &quot;Twitter - Sentiment Analysis&quot;</h3>
+  <hr>
+
+<h4>A Shiny App by kwektuanze</h4>
+
+</section>
+<section class='' data-state='' id='slide-2'>
+  <h3>App Introduction</h3>
+  <hr>
+
+<ol>
+<li><p>Pull tweets of two given words (hashtag, handle supported) and apply sentiment scoring algorithm.</p></li>
+<li><p>Generate box plots of the distribution and mean of scores, for sentiment analysis of the two words.</p></li>
+</ol>
+
+<blockquote>
+<p>Let&#39;s see an example of #iphone6 vs. #s6</p>
+</blockquote>
+
+</section>
+<section class='' data-state='' id='slide-3'>
+  <h3>1. Sentiment Scoring Algorithm</h3>
+  <hr>
+  
+<div class='left' style='float:left;width:60%'>
+ <h4>Subset of R code</h4>
+
+<pre><code class="r">library(plyr)
+library(stringr)
+library(tm)
+library(twitteR)
+
+#Twitter OAuth with token cache
+origop&lt;-options(&quot;httr_oauth_cache&quot;)
+options(httr_oauth_cache=TRUE)
+setup_twitter_oauth(&quot;jhDUfOPgDrov0Vcn5IodKa0iN&quot;, &quot;FXjD6OWwUEjJtNxuCXhkPglKCAYHdUO2i3kogs8PZBxoBnW3gB&quot;, &quot;3163543724-Rs8hQpHN79iK5qCVfFADFAJyNqUhvOsye6KkrxX&quot;, &quot;BvF2Cb6JikThKxEAG70HjPEYKQBDlk4CWA8eieb37QuAz&quot;)
+options(httr_oauth_cache=origop)
+
+#Tweets search and return resultant data frame
+searchTweets&lt;-function(searchWord, maxTweets) {
+  searchResult&lt;-searchTwitter(searchWord, n=maxTweets, lang=&quot;en&quot;)
+  searchResultDf&lt;-do.call(&quot;rbind&quot;, lapply(searchResult, as.data.frame))
+  searchResultDf$text&lt;-iconv(searchResultDf$text, &#39;UTF-8&#39;, &#39;ASCII&#39;)
+  return(searchResultDf)
+}
+
+#Data preparation on tweets
+cleanTweets&lt;-function(tweets) {
+  #Remove spaces
+  tweets&lt;-str_replace_all(tweets, &quot; &quot;, &quot; &quot;)
+  #Remove URLs
+  tweets&lt;-str_replace_all(tweets, &quot;http://t.co/[a-z,A-Z,0-9]*{8}&quot;, &quot;&quot;)
+  #Remove retweet header
+  tweets&lt;-str_replace(tweets, &quot;RT @[a-z,A-Z]*: &quot;, &quot;&quot;)
+  #Remove hashtags
+  tweets&lt;-str_replace_all(tweets, &quot;#[a-z,A-Z]*&quot;, &quot;&quot;)
+  #Remove screen name references
+  tweets&lt;-str_replace_all(tweets, &quot;@[a-z,A-Z]*&quot;, &quot;&quot;)
+  return(tweets)
+}
+
+#Scoring sentiment based on Jeffrey Breen&#39;s algorithm: https://jeffreybreen.wordpress.com/2011/07/04/twitter-text-mining-r-slides
+score.sentiment = function(sentences, pos.words, neg.words) {
+
+  scores = laply(sentences, function(sentence, pos.words, neg.words) {
+    # clean up sentences with R&#39;s regex-driven global substitute, gsub():
+    sentence = gsub(&#39;[[:punct:]]&#39;, &#39;&#39;, sentence)
+    sentence = gsub(&#39;[[:cntrl:]]&#39;, &#39;&#39;, sentence)
+    sentence = gsub(&#39;\\d+&#39;, &#39;&#39;, sentence)
+    # and convert to lower case:
+    sentence = tolower(sentence)
+
+    # split into words. str_split is in the stringr package
+    word.list = str_split(sentence, &#39;\\s+&#39;)
+    # sometimes a list() is one level of hierarchy too much
+    words = unlist(word.list)
+
+    # compare our words to the dictionaries of positive &amp; negative terms
+    pos.matches = match(words, pos.words)
+    neg.matches = match(words, neg.words)
+
+    # match() returns the position of the matched term or NA
+    # we just want a TRUE/FALSE:
+    pos.matches = !is.na(pos.matches)
+    neg.matches = !is.na(neg.matches)
+
+    # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
+    score = sum(pos.matches) - sum(neg.matches)
+
+    return(score)
+  }, pos.words, neg.words)
+
+  scores.df = data.frame(score=scores, cleaned_tweets=sentences)
+  return(scores.df)
+}
+
+#Sentiment analysis
+sentimentAnalysis&lt;-function(word1tweets, word2tweets, word1, word2) {
+
+  #List of positive and negative words from Jeffrey Breen&#39;s GitHub: https://github.com/jeffreybreen/twitter-sentiment-analysis-tutorial-201107/tree/master/data/opinion-lexicon-English
+  positivewords=readLines(&quot;positive_words.txt&quot;)
+  negativewords=readLines(&quot;negative_words.txt&quot;)
+
+  #Apply score.sentiment algorithm
+  word1score=score.sentiment(cleanTweets(word1tweets), positivewords, negativewords)
+  word2score=score.sentiment(cleanTweets(word2tweets), positivewords, negativewords)
+
+  #Add labels [word1] and [word2] for ggplot of the analysis
+  word1score$word=word1
+  word2score$word=word2
+
+  #Combine scores
+  sentimentScores&lt;-rbind(word1score, word2score)
+}
+
+#Read word 1 and word 2, and search the related tweets
+searchResult1&lt;-searchTweets(&quot;#iphone6&quot;, 10)
+searchResult2&lt;-searchTweets(&quot;#s6&quot;, 10)
+
+#Create sentiment scores
+sentimentScores&lt;-sentimentAnalysis(searchResult1$text, searchResult2$text, &quot;#iphone6&quot;, &quot;#s6&quot;)
+</code></pre>
+
+</div>    
+<div class='right' style='float:right;width:40%'>
+ <h4>Results of the two words</h4>
+
+<pre><code>##    score     word
+## 1      0 #iphone6
+## 2      0 #iphone6
+## 3      0 #iphone6
+## 4      0 #iphone6
+## 5      0 #iphone6
+## 6      0 #iphone6
+## 7      2 #iphone6
+## 8      0 #iphone6
+## 9      0 #iphone6
+## 10     0 #iphone6
+## 11     0      #s6
+## 12     0      #s6
+## 13     0      #s6
+## 14     0      #s6
+## 15     1      #s6
+## 16     0      #s6
+## 17     0      #s6
+## 18     0      #s6
+## 19     1      #s6
+## 20     0      #s6
+</code></pre>
+
+</div>
+</section>
+<section class='' data-state='' id='slide-4'>
+  <h3>Box plot of the distribution and mean of scores</h3>
+  <hr>
+
+<pre><code class="r">ggplot(sentimentScores, aes(x=word,y=score,fill=word))+geom_boxplot()+geom_jitter(alpha=.3)+
+  theme(axis.text.x = element_text(color=&quot;black&quot;))+theme(axis.text.y = element_text(color=&quot;black&quot;))+theme(legend.position=&quot;none&quot;)+labs(x=&quot;&quot;)+
+  stat_summary(fun.y=mean, geom=&quot;point&quot;,color=&quot;blue&quot;, size=5)
+</code></pre>
+
+<p><img src="assets/fig/unnamed-chunk-3-1.png" alt="plot of chunk unnamed-chunk-3"> </p>
+
+</section>
+<section class='' data-state='' id='slide-5'>
+  <h3>Conclusion and more</h3>
+  <hr>
+
+<p><span style="font-size:20px">The box plot shows the distribution of sentiment scores about each word on Twitter. For each tweet, a net score of positive (&gt; 0), negative (&lt; 0) or neutral (= 0) sentiments is calculated. Blue dots are mean sentiment scores for the two words. We can see the sentiments for Apple iPhone 6 (#iphone6) and Samsung S6 (#s6) are generally positive and similar.</span>
+<hr></hr></p>
+
+<ul>
+<li><span style="font-size:28px">Hope the example interests you to explore more :)</span></li>
+<li><span style="font-size:28px">Please visit my shiny app:<br />
+<a href="https://kwektuanze.shinyapps.io/Developing_Data_Products_Course_Project">https://kwektuanze.shinyapps.io/Developing_Data_Products_Course_Project</a></span></li>
+<li><span style="font-size:28px">Code shared on github:
+<a href="https://github.com/kwektuanze/Developing_Data_Products_Course_Project">https://github.com/kwektuanze/Developing_Data_Products_Course_Project</a></span></li>
+</ul>
+
+<blockquote>
+<p>Thank you!</p>
+</blockquote>
+
+</section>
+    </div>
+  </div>
+</body>
+  <script src="libraries/frameworks/revealjs/lib/js/head.min.js"></script>
+  <script src="libraries/frameworks/revealjs/js/reveal.min.js"></script>
+  <script>
+  // Full list of configuration options available here:
+  // https://github.com/hakimel/reveal.js#configuration
+  Reveal.initialize({
+    controls: true,
+    progress: true,
+    history: true,
+    center: true,
+    theme: Reveal.getQueryHash().theme || 'default', 
+    transition: Reveal.getQueryHash().transition || 'default', 
+    dependencies: [
+    // Cross-browser shim that fully implements classList -
+    // https://github.com/eligrey/classList.js/
+      { src: 'libraries/frameworks/revealjs/lib/js/classList.js', condition: function() { return !document.body.classList;}},
+      // Zoom in and out with Alt+click
+      { src: 'libraries/frameworks/revealjs/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+      // Speaker notes
+      { src: 'libraries/frameworks/revealjs/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } },
+      // Remote control your reveal.js presentation using a touch device
+      //{ src: 'libraries/frameworks/revealjs/plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+      ]
+  });
+  </script>  <!-- LOAD HIGHLIGHTER JS FILES -->
+<script src="libraries/highlighters/highlight.js/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<!-- DONE LOADING HIGHLIGHTER JS FILES -->
+ 
+
+</html>

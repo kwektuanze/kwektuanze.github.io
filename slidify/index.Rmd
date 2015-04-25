@@ -29,8 +29,7 @@ mode        : selfcontained # {standalone, draft}
 ---
 *** =left
 #### Subset of R code
-
-```r
+```{r results="hide"}
 library(plyr)
 library(stringr)
 library(tm)
@@ -129,42 +128,20 @@ sentimentScores<-sentimentAnalysis(searchResult1$text, searchResult2$text, "#iph
 
 *** =right
 #### Results of the two words 
-
-```
-##    score     word
-## 1      0 #iphone6
-## 2      0 #iphone6
-## 3      0 #iphone6
-## 4      0 #iphone6
-## 5      0 #iphone6
-## 6      0 #iphone6
-## 7      2 #iphone6
-## 8      0 #iphone6
-## 9      0 #iphone6
-## 10     0 #iphone6
-## 11     0      #s6
-## 12     0      #s6
-## 13     0      #s6
-## 14     0      #s6
-## 15     1      #s6
-## 16     0      #s6
-## 17     0      #s6
-## 18     0      #s6
-## 19     1      #s6
-## 20     0      #s6
+```{r echo=FALSE}
+#Remove column "cleaned_tweets" from data frame due to slide width constraint
+sentimentScores$cleaned_tweets<-NULL
+sentimentScores
 ```
 
 ---
 ### Box plot of the distribution and mean of scores
 ---
-
-```r
+```{r}
 ggplot(sentimentScores, aes(x=word,y=score,fill=word))+geom_boxplot()+geom_jitter(alpha=.3)+
   theme(axis.text.x = element_text(color="black"))+theme(axis.text.y = element_text(color="black"))+theme(legend.position="none")+labs(x="")+
   stat_summary(fun.y=mean, geom="point",color="blue", size=5)
 ```
-
-![plot of chunk unnamed-chunk-3](assets/fig/unnamed-chunk-3-1.png) 
 
 ---
 ### Conclusion and more
